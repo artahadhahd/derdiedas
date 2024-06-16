@@ -150,11 +150,13 @@ export default function Home() {
 
   function DerDieDas() {
     return (
+      <>
       <View style={{flexDirection: 'row'}}>
         <SButton gender='der' />
         <SButton gender='die' />
         <SButton gender='das' />
       </View>
+      </>
     )
   }
 
