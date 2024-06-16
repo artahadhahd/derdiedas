@@ -107,6 +107,12 @@ export default function Words() {
 
                 <TextInput 
                     onChangeText={setNoun}
+                    onEndEditing={async () => await addWord(noun, gender)}
+                    onKeyPress={async ({nativeEvent: {key: keyValue} }) => {
+                        if (keyValue == 'Enter') {
+                            await addWord(noun, gender);
+                        }
+                    }}
                     value={noun}
                     placeholder="Enter a noun here"
                     inputMode="text"

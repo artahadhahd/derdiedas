@@ -1,49 +1,53 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import {Image, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Image, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-
-async function getRandom(list: readonly string[]): Promise<Word | null> {
-  const rand = Math.floor(Math.random() * list.length);
-  const noun = list.at(rand);
-  if (noun != undefined) {
-    const gender = await AsyncStorage.getItem(noun);
-    if (gender != null) {
-      return {
-        key_: noun, data: JSON.parse(gender)
-      };
-    }
-  }
-  return null;
-}
-
 
 
 export default function Home() {
   const [word, setWord] = React.useState<Word>();
   const [menu, setMenu] = React.useState(true);
   const [keys, setKeys] = React.useState<readonly string[]>([]);
-  const [count, setCount] = React.useState(0);
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [modalEntry, setModalEntry] = React.useState('');
+  const [indices, setIndices] = React.useState<Set<number>>(new Set);
 
   React.useEffect(() => {
     AsyncStorage.getAllKeys().then((keys) => setKeys(keys)).catch(console.log);
-  }, []);
+  }, [menu]);
 
   React.useEffect(() => {
     if (word == undefined) {
+      // setCount(0);
       reset().then().catch(console.log);
-      setCount(0);
-    } else if (word.data.used) {
-      updateWord().then().catch(console.log);
-    } else if (!word.data.used) {
-      setCount(count + 1);
     }
   }, [word]);
 
+  async function getRandom(): Promise<Word | null> {
+    const rand = Math.floor(Math.random() * keys.length);
+    if (indices.size >= keys.length) {
+      return null;
+    }
+    if (indices?.has(rand)) {
+      return getRandom();
+    }
+    indices?.add(rand);
+    setIndices(indices);
+    const noun = keys.at(rand);
+    if (noun != undefined) {
+      const gender = await AsyncStorage.getItem(noun);
+      if (gender != null) {
+        return {
+          key_: noun, data: JSON.parse(gender)
+        };
+      }
+    }
+    return null;
+  }
+
   const updateWord = async () => {
-    const newWord = await getRandom(keys);
-    if (newWord != null && count < keys.length) {
+    const newWord = await getRandom();
+    if (newWord != null) { // && count < keys.length) {
       setWord(newWord);
       await AsyncStorage.mergeItem(newWord.key_, JSON.stringify({gender: newWord.data.gender, used: true}));
     } else {
@@ -58,9 +62,7 @@ export default function Home() {
   };
 
   const reset = async () => {
-    if (word != null) {
-      word.data.used = false;
-    }
+    setIndices(new Set);
     for (const key of keys) {
       if (word?.key_ == key) {
         continue;
@@ -68,7 +70,6 @@ export default function Home() {
       const noun = await AsyncStorage.getItem(key);
       if (noun != null) {
         const data = JSON.parse(noun) as Data;
-        data.used = false;
         await AsyncStorage.mergeItem(key, JSON.stringify(data));
       }
     }
@@ -99,23 +100,51 @@ export default function Home() {
   }
 
   function SButton({gender}: Gender) {
-    const getColor = (): string => {
-      switch (gender) {
+    const getColor = (gen: string): string => {
+      switch (gen) {
         case 'der': return '#98b2c1';
         case 'die': return '#FF8D9C';
-        case 'das': return 'white';
+        default: return 'white';
       }
     };
     return (
-      <Pressable onPress={async () => {
-        if (word?.data.gender != gender) {
-          console.log("you fucked up lmao");
-        } else {
-          await updateWord();
-        }
-      }} style={({pressed}) => [styles.sbutton, styles.center, {backgroundColor: pressed ? getColor() : '#dedede'}]}>
-        <Text>{gender}</Text>
-      </Pressable>
+      <>
+        <Modal
+          animationType='fade'
+          transparent={false}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+          style={[{backgroundColor: 'black'}]}
+        >
+          <SafeAreaView style={[styles.center, {backgroundColor: getColor(modalEntry)}]}>
+            <Text style={{fontSize: 30}}>{modalEntry} {word?.key_}</Text>
+            <Pressable onPress={() => {
+              setModalVisible(false);
+            }}>
+              <Text style={{color: 'gray'}}>Continue</Text>
+            </Pressable>
+          </SafeAreaView>
+        </Modal>
+
+
+        <Pressable onPress={async () => {
+          if (word?.data.gender != gender) {
+            setModalVisible(true);
+            if (word != undefined) {
+              setModalEntry(word?.data.gender);
+            }
+          } else {
+            await updateWord();
+          }
+          setTimeout(() => {
+            if (!modalVisible) {
+              setModalVisible(false);
+            }
+          }, 3000);
+          }} style={({pressed}) => [styles.sbutton, styles.center, {backgroundColor: pressed ? getColor(gender) : '#dedede'}]}>
+          <Text>{gender}</Text>
+        </Pressable>
+      </>
     )
   }
 
@@ -181,6 +210,9 @@ const styles = StyleSheet.create({
       borderWidth: 1,
       borderRadius: 5,
       borderColor: 'gray',
+    },
+    false: {
+
     },
 
 

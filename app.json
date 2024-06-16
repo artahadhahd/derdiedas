@@ -27,6 +27,15 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "297df57e-43ad-4ec9-924d-0f0b19f54a60"
+      }
+    },
+    "owner": "doodleheimer"
   }
 }

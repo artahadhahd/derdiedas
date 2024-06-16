@@ -2,7 +2,7 @@ type Gender = {gender: 'der' | 'die' | 'das'};
 
 type Data = {
     gender: string,
-    used: boolean,
+    // used: boolean,
 };
 
 type Word = {
