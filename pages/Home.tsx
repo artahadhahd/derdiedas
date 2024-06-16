@@ -22,26 +22,64 @@ async function getRandom(list: readonly string[]): Promise<Word | null> {
 
 export default function Home() {
   const [word, setWord] = React.useState<Word>();
-  const [menu, setMenu] = React.useState<boolean>(true);
+  const [menu, setMenu] = React.useState(true);
+  const [keys, setKeys] = React.useState<readonly string[]>([]);
+  const [count, setCount] = React.useState(0);
+
+  React.useEffect(() => {
+    AsyncStorage.getAllKeys().then((keys) => setKeys(keys)).catch(console.log);
+  }, []);
+
+  React.useEffect(() => {
+    if (word == undefined) {
+      reset().then().catch(console.log);
+      setCount(0);
+    } else if (word.data.used) {
+      updateWord().then().catch(console.log);
+    } else if (!word.data.used) {
+      setCount(count + 1);
+    }
+  }, [word]);
 
   const updateWord = async () => {
-    const list = await AsyncStorage.getAllKeys();
-    const word = await getRandom(list);
-    if (word != null) {
-      setWord(word);
+    const newWord = await getRandom(keys);
+    if (newWord != null && count < keys.length) {
+      setWord(newWord);
+      await AsyncStorage.mergeItem(newWord.key_, JSON.stringify({gender: newWord.data.gender, used: true}));
+    } else {
+      setWord(undefined);
     }
   };
 
   const start = async () => {
+    setKeys(await AsyncStorage.getAllKeys());
+    await updateWord();
     setMenu(false);
-    updateWord();
+  };
+
+  const reset = async () => {
+    if (word != null) {
+      word.data.used = false;
+    }
+    for (const key of keys) {
+      if (word?.key_ == key) {
+        continue;
+      }
+      const noun = await AsyncStorage.getItem(key);
+      if (noun != null) {
+        const data = JSON.parse(noun) as Data;
+        data.used = false;
+        await AsyncStorage.mergeItem(key, JSON.stringify(data));
+      }
+    }
+    setMenu(true);
   };
 
   function RestartButton() {
     return (
     <View style={{alignItems: 'center'}}>
       <View style={{width: '75%', flexDirection: 'row-reverse'}}>
-        <Pressable style={[styles.backButton, styles.center]} onPress={() => setMenu(true)}>
+        <Pressable style={[styles.backButton, styles.center]} onPress={async () => await reset()}>
           <Image style={{width: 30, height: 30}} source={require("../assets/restart.png")} />
         </Pressable>
       </View>
@@ -81,25 +119,28 @@ export default function Home() {
     )
   }
 
+  function DerDieDas() {
+    return (
+      <View style={{flexDirection: 'row'}}>
+        <SButton gender='der' />
+        <SButton gender='die' />
+        <SButton gender='das' />
+      </View>
+    )
+  }
+
 
   return (
     <SafeAreaView style={{flex: 1, height: '100%'}}>
 
       <View style={styles.center}>
         <View style={[styles.card, styles.center]}>
-          <Text style={styles.noun}>{word?.key_}</Text>
-          {word == null && <Text>You don't have any items yet.</Text>}
-
-          <View style={{flexDirection: 'row'}}>
-            <SButton gender='der' />
-            <SButton gender='die' />
-            <SButton gender='das' />
-          </View>
+          {keys.length > 0 && <Text style={styles.noun}>{word?.key_}</Text>}
+          {keys.length == 0 && <Text>You don't have any items yet.</Text>}
+          {keys.length > 0 && <DerDieDas />}
         </View>
         <RestartButton />
       </View>
-
-
     </SafeAreaView>
   )
 }
